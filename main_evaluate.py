@@ -245,6 +245,9 @@ def main_eval(args):
                 stats.update(val_stats)  # Concatenate test stats
                 print(json.dumps(stats))
                 print(json.dumps(stats), file=imagenet_c_stats_file)
+    
+    if misc.is_main_process():
+        imagenet_c_stats_file.close()
 
 
 if __name__ == '__main__':
