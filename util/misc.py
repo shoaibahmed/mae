@@ -80,6 +80,8 @@ class SmoothedValue(object):
             avg=self.avg,
             global_avg=self.global_avg,
             max=self.max,
+            count=self.count,
+            total=self.total,
             value=self.value)
 
 

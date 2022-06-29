@@ -142,7 +142,7 @@ def main_eval(args):
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
     dataset_train = datasets.ImageFolder(os.path.join(args.data_path, 'train'), transform=transform_train)
-    dataset_val = datasets.ImageFolder(os.path.join(args.data_path, 'val'), transform=transform_val)
+    dataset_val = datasets.ImageFolder(os.path.join(args.data_path, 'val_folders'), transform=transform_val)
     print(dataset_train)
     print(dataset_val)
     
@@ -182,11 +182,22 @@ def main_eval(args):
         drop_last=False
     )
     
+    if misc.is_main_process():
+        imagenet_c_stats_file = open(f'{args.model}_imagenet_c_stats.txt', 'w', buffering=1)
+    
     train_stats = evaluate(data_loader_train, model, device)
     print(f"Accuracy of the network on the {len(dataset_train)} training images: {train_stats['acc1']:.1f}%")
+    if misc.is_main_process():
+        stats = dict(set="Train").update(train_stats)
+        print(json.dumps(stats))
+        print(json.dumps(stats), file=imagenet_c_stats_file)
     
     test_stats = evaluate(data_loader_val, model, device)
     print(f"Accuracy of the network on the {len(dataset_val)} test images: {test_stats['acc1']:.1f}%")
+    if misc.is_main_process():
+        stats = dict(set="Validation").update(test_stats)
+        print(json.dumps(stats))
+        print(json.dumps(stats), file=imagenet_c_stats_file)
     
     # Evaluate on ImageNet-C
     noise_classes = [os.path.join(args.imagenet_c_path, x) for x in os.listdir(args.imagenet_c_path)]
@@ -203,7 +214,6 @@ def main_eval(args):
     if misc.is_main_process():
         print("Final noise dirs:", noise_dirs)
         print("Noise class names:", noise_class_names)
-        imagenet_c_stats_file = open(f'{args.model}_imagenet_c_stats.txt', 'w', buffering=1)
     
     for dir, cls_name in zip(noise_dirs, noise_class_names):
         cls_name = cls_name.replace("_", " ").title()
@@ -227,12 +237,12 @@ def main_eval(args):
                 drop_last=False
             )
             
-            test_stats = evaluate(im_c_loader, model, device)
-            print(f"Accuracy of the network on the {len(dataset_im_c)} images from {cls_name} with severity {severity}: {train_stats['acc1']:.1f}%")
+            val_stats = evaluate(im_c_loader, model, device)
+            print(f"Accuracy of the network on the {len(dataset_im_c)} images from {cls_name} with severity {severity}: {val_stats['acc1']:.1f}%")
             
             if misc.is_main_process():
                 stats = dict(noise_class=cls_name, severity=severity, noise_dir=final_dir)
-                stats.update(test_stats)  # Concatenate test stats
+                stats.update(val_stats)  # Concatenate test stats
                 print(json.dumps(stats))
                 print(json.dumps(stats), file=imagenet_c_stats_file)
 
