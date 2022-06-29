@@ -102,24 +102,6 @@ def main_eval(args):
     assert args.resume is not None
     
     # Initialize the distributed environment
-    # args.gpu = 0
-    # args.world_size = 1
-    # args.local_rank = 0
-    # args.distributed = int(os.getenv('WORLD_SIZE', 1)) > 1
-    # args.rank = int(os.getenv('RANK', 0))
-
-    # if "SLURM_NNODES" in os.environ:
-    #     args.local_rank = args.rank % torch.cuda.device_count()
-    #     print(f"SLURM tasks/nodes: {os.getenv('SLURM_NTASKS', 1)}/{os.getenv('SLURM_NNODES', 1)}")
-    # elif "WORLD_SIZE" in os.environ:
-    #     args.local_rank = int(os.getenv('LOCAL_RANK', 0))
-
-    # args.gpu = args.local_rank
-    # torch.cuda.set_device(args.gpu)
-    # torch.distributed.init_process_group(backend="nccl", init_method="env://")
-    # args.world_size = torch.distributed.get_world_size()
-    # assert int(os.getenv('WORLD_SIZE', 1)) == args.world_size
-    # print(f"Initializing the environment with {args.world_size} processes...")
     misc.init_distributed_mode(args)
     
     seed = args.seed + misc.get_rank()
@@ -246,6 +228,7 @@ def main_eval(args):
             )
             
             test_stats = evaluate(im_c_loader, model, device)
+            print(f"Accuracy of the network on the {len(dataset_im_c)} images from {cls_name} with severity {severity}: {train_stats['acc1']:.1f}%")
             
             if misc.is_main_process():
                 stats = dict(noise_class=cls_name, severity=severity, noise_dir=final_dir)
