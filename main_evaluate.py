@@ -133,25 +133,6 @@ def main_eval(args):
     print('job dir: {}'.format(os.path.dirname(os.path.realpath(__file__))))
     print("{}".format(args).replace(', ', ',\n'))
     
-    # if args.seed is not None:
-    #     print("Using seed = {}".format(args.seed))
-    #     torch.manual_seed(args.seed + args.local_rank)
-    #     torch.cuda.manual_seed(args.seed + args.local_rank)
-    #     np.random.seed(seed=args.seed + args.local_rank)
-    #     random.seed(args.seed + args.local_rank)
-
-    #     def _worker_init_fn(id):
-    #         # Worker process should inherit its affinity from parent
-    #         affinity = os.sched_getaffinity(0) 
-    #         if not args.eval_only:
-    #             print(f"Process {args.local_rank} Worker {id} set affinity to: {affinity}")
-
-    #         np.random.seed(seed=args.seed + args.local_rank + id)
-    #         random.seed(args.seed + args.local_rank + id)
-
-    #     cudnn.benchmark = True
-    #     device = torch.device(args.gpu)
-    
     # Create the model
     model = models_vit.__dict__[args.model](
         num_classes=args.nb_classes,
@@ -236,9 +217,11 @@ def main_eval(args):
         assert all([os.path.exists(x) for x in current_dirs])
         noise_dirs += current_dirs
         noise_class_names += [dir for dir in os.listdir(cls)]
+    
     if misc.is_main_process():
         print("Final noise dirs:", noise_dirs)
         print("Noise class names:", noise_class_names)
+        imagenet_c_stats_file = open(f'{args.model}_imagenet_c_stats.txt', 'w', buffering=1)
     
     for dir, cls_name in zip(noise_dirs, noise_class_names):
         cls_name = cls_name.replace("_", " ").title()
@@ -253,19 +236,6 @@ def main_eval(args):
                 print("Severity:", severity)
                 print("Final directory loaded:", final_dir)
             
-            # im_c_loader, im_c_loader_len = get_val_loader(
-            #     final_dir,
-            #     image_size,
-            #     args.batch_size,
-            #     model_args.num_classes,
-            #     False,
-            #     interpolation=args.interpolation,
-            #     workers=args.workers,
-            #     _worker_init_fn=_worker_init_fn,
-            #     memory_format=memory_format,
-            #     prefetch_factor=args.prefetch,
-            #     folder=None,
-            # )
             dataset_im_c = datasets.ImageFolder(final_dir, transform=transform_val)
             im_c_loader = torch.utils.data.DataLoader(
                 dataset_im_c, sampler=sampler_val,
@@ -275,24 +245,11 @@ def main_eval(args):
                 drop_last=False
             )
             
-            top1 = AverageMeter('Acc@1')
-            top5 = AverageMeter('Acc@5')
-            
-            with torch.no_grad():
-                for images, target in im_c_loader:
-                    output = model(images.cuda(args.gpu, non_blocking=True))
-                    if isinstance(output, tuple) or isinstance(output, list):
-                        _, output = output  # Decompose into features and logits
-                        assert isinstance(output, torch.Tensor), output
-                    acc1, acc5 = accuracy(output, target.cuda(args.gpu, non_blocking=True), topk=(1, 5))
-                    top1.update(acc1[0].item(), images.size(0))
-                    top5.update(acc5[0].item(), images.size(0))
-            
-            top1.collect_distributed()
-            top5.collect_distributed()
+            test_stats = evaluate(im_c_loader, model, device)
             
             if misc.is_main_process():
-                stats = dict(noise_class=cls_name, severity=severity, noise_dir=final_dir, acc1=top1.avg, acc5=top5.avg, top1_correct=int(top1.sum/100.), top5_correct=int(top5.sum/100.), total=top1.count)
+                stats = dict(noise_class=cls_name, severity=severity, noise_dir=final_dir)
+                stats.update(test_stats)  # Concatenate test stats
                 print(json.dumps(stats))
                 print(json.dumps(stats), file=imagenet_c_stats_file)
 
