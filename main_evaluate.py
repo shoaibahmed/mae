@@ -188,14 +188,16 @@ def main_eval(args):
     train_stats = evaluate(data_loader_train, model, device)
     print(f"Accuracy of the network on the {len(dataset_train)} training images: {train_stats['acc1']:.1f}%")
     if misc.is_main_process():
-        stats = dict(set="Train").update(train_stats)
+        stats = dict(set="Train")
+        stats.update(train_stats)
         print(json.dumps(stats))
         print(json.dumps(stats), file=imagenet_c_stats_file)
     
     test_stats = evaluate(data_loader_val, model, device)
     print(f"Accuracy of the network on the {len(dataset_val)} test images: {test_stats['acc1']:.1f}%")
     if misc.is_main_process():
-        stats = dict(set="Validation").update(test_stats)
+        stats = dict(set="Validation")
+        stats.update(test_stats)
         print(json.dumps(stats))
         print(json.dumps(stats), file=imagenet_c_stats_file)
     
