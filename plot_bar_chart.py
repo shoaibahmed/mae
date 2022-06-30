@@ -30,19 +30,19 @@ def plot_results(all_results, file_name):
     fig.set_size_inches(plot_width, 8)
     
     r_list = []
-    num_expected_ignore = 2  # train and validation stats
     for i in range(len(model_names)):
         stride = start_point + i*bar_width
-        r = [x + stride for x in np.arange(len(corruption_types)-num_expected_ignore)]
+        r = [x + stride for x in np.arange(len(corruption_types))]
         r_list.append(r)
 
+    num_expected_ignore = 2  # train and validation stats
     for i, (key, results) in enumerate(all_results.items()):
         error_list = []
         error_std_list = []
         accuracy_list = []
         accuracy_std_list = []
-        ignored_cls = 0
-        for corruption_type in corruption_types:
+        use_idx = []
+        for j, corruption_type in enumerate(corruption_types):
             corruption_levels = list(results[corruption_type].keys())
             assert all([x == str(y) for x, y in zip(corruption_levels, range(1, 6))])
             acc_list = [results[corruption_type][corruption_severity] for corruption_severity in corruption_levels]
@@ -53,8 +53,8 @@ def plot_results(all_results, file_name):
             
             if corruption_type.lower() in ["train", "validation"]:
                 print("Ignoring class:", corruption_type)
-                ignored_cls += 1
-                continue
+            else:
+                use_idx.append(j)
             
             accuracy_list.append(mean_acc)
             accuracy_std_list.append(np.std(acc_list))
@@ -65,9 +65,9 @@ def plot_results(all_results, file_name):
         # Draw the bars here
         plt.bar(r_list[i], error_list, yerr=error_std_list, width=bar_width, linewidth=2., color=marker_colors[i], alpha=0.6, label=key)
         
-        assert ignored_cls == num_expected_ignore, ignored_cls
-        overall_mean_error = np.mean(error_list)
-        overall_mean_acc = np.mean(accuracy_list)
+        assert len(corruption_types) - len(use_idx) == num_expected_ignore, len(corruption_types) - len(use_idx)
+        overall_mean_error = np.mean([error_list[j] for j in use_idx])
+        overall_mean_acc = np.mean([accuracy_list[j] for j in use_idx])
         print(f"Model file: {key} \t Mean stats \t Error: {overall_mean_error:.2f}% \t Accuracy: {overall_mean_acc:.2f}%")
     
     fontsize = 16
