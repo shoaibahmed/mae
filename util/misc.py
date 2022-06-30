@@ -74,6 +74,17 @@ class SmoothedValue(object):
     def value(self):
         return self.deque[-1]
 
+    @property
+    def object_dict(self):
+        return dict(
+            median=self.median,
+            avg=self.avg,
+            global_avg=self.global_avg,
+            max=self.max,
+            count=self.count,
+            total=self.total,
+            value=self.value)
+
     def __str__(self):
         return self.fmt.format(
             median=self.median,

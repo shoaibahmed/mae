@@ -27,6 +27,8 @@ def plot_results(all_results, file_name):
     # Plot the results
     fig, ax = plt.subplots()
     plot_width = 6 * len(model_names)
+    if len(model_names) == 1:
+        plot_width = 8
     fig.set_size_inches(plot_width, 8)
     
     r_list = []

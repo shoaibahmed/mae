@@ -186,7 +186,7 @@ def main_eval(args):
         imagenet_c_stats_file = open(f'{args.model}_imagenet_c_stats.txt', 'w', buffering=1)
     
     train_stats = evaluate(data_loader_train, model, device)
-    print(f"Accuracy of the network on the {len(dataset_train)} training images: {train_stats['acc1']:.1f}%")
+    print(f"Accuracy of the network on the {len(dataset_train)} training images: {train_stats['acc1']}")
     if misc.is_main_process():
         stats = dict(set="Train")
         stats.update(train_stats)
@@ -194,7 +194,7 @@ def main_eval(args):
         print(json.dumps(stats), file=imagenet_c_stats_file)
     
     test_stats = evaluate(data_loader_val, model, device)
-    print(f"Accuracy of the network on the {len(dataset_val)} test images: {test_stats['acc1']:.1f}%")
+    print(f"Accuracy of the network on the {len(dataset_val)} test images: {test_stats['acc1']}")
     if misc.is_main_process():
         stats = dict(set="Validation")
         stats.update(test_stats)
@@ -240,7 +240,7 @@ def main_eval(args):
             )
             
             val_stats = evaluate(im_c_loader, model, device)
-            print(f"Accuracy of the network on the {len(dataset_im_c)} images from {cls_name} with severity {severity}: {val_stats['acc1']:.1f}%")
+            print(f"Accuracy of the network on the {len(dataset_im_c)} images from {cls_name} with severity {severity}: {val_stats['acc1']}%")
             
             if misc.is_main_process():
                 stats = dict(noise_class=cls_name, severity=severity, noise_dir=final_dir)
