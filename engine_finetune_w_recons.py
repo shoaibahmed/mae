@@ -115,7 +115,7 @@ def evaluate(data_loader, model, device):
 
         # compute output
         with torch.cuda.amp.autocast():
-            recons_loss, cls_loss, loss, pred, mask, logits = model(images, targets=target)
+            recons_loss, cls_loss, loss, pred, mask, logits = model(images, targets=target, cls_criterion=criterion)
             # outputs = model(samples)
             # loss = criterion(outputs, targets)
             print(f"Loss vals / Recons loss: {float(recons_loss):.4f} / Cls loss: {float(cls_loss):.4f} / Total loss: {float(loss):.4f}")

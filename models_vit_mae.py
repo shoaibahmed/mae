@@ -266,7 +266,7 @@ class ViTwMAE(nn.Module):
         loss = self.forward_loss(imgs, pred, mask)
         return loss, pred, mask
     
-    def forward(self, imgs, mask_ratio=0.75, targets=None):
+    def forward(self, imgs, mask_ratio=0.75, targets=None, cls_criterion=None):
         latent, mask, ids_restore, pre_logits = self.forward_features(imgs, mask_ratio)
         pred = self.forward_decoder(latent, ids_restore)  # [N, L, p*p*3]
         recons_loss = self.forward_loss(imgs, pred, mask)
@@ -276,7 +276,10 @@ class ViTwMAE(nn.Module):
         if targets is not None:
             assert self.cls_criterion is not None
             assert self.recons_lambda is not None
-            cls_loss = self.cls_criterion(logits, targets)
+            if cls_criterion is not None:  # For validation set
+                cls_loss = cls_criterion(logits, targets)
+            else:
+                cls_loss = self.cls_criterion(logits, targets)
             loss = cls_loss + self.recons_lambda * recons_loss
         return recons_loss, cls_loss, loss, pred, mask, logits
 
