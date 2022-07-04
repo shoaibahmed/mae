@@ -28,7 +28,7 @@ class ViTwMAE(nn.Module):
                  decoder_embed_dim=512, decoder_depth=8, decoder_num_heads=16,
                  mlp_ratio=4., norm_layer=nn.LayerNorm, norm_pix_loss=False,
                  global_pool=False, cls_criterion=None, recons_lambda=None,
-                 num_classes=None, drop_path_rate=0.):
+                 num_classes=None, drop_path_rate=0., drop_rate=0.,):
         super().__init__()
 
         # --------------------------------------------------------------------------
@@ -73,7 +73,13 @@ class ViTwMAE(nn.Module):
         
         # Classifier head
         assert num_classes is not None and num_classes > 0
-        self.head = nn.Linear(self.num_features, num_classes)
+        self.head = nn.Linear(embed_dim, num_classes)
+        self.pos_drop = nn.Dropout(p=drop_rate)
+        self.fc_norm = self.norm
+    
+    @torch.jit.ignore
+    def no_weight_decay(self):
+        return {'pos_embed', 'cls_token', 'dist_token'}
 
     def initialize_weights(self):
         # initialization
