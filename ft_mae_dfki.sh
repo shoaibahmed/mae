@@ -6,7 +6,8 @@ srun -p RTX3090 -K -N1 --ntasks-per-node=8 --gpus-per-task=1 --cpus-per-gpu=8 --
     --kill-on-bad-exit --job-name ${job} --nice=0 --time=10-00:00:00 \
     --container-mounts=/netscratch:/netscratch,/ds:/ds,/home/siddiqui:/home/siddiqui --container-image=/netscratch/enroot/nvcr.io_nvidia_pytorch_21.06-py3.sqsh \
     --container-workdir=`pwd` --container-mount-home --export="NCCL_SOCKET_IFNAME=bond,NCCL_IB_HCA=mlx5" \
-    /opt/conda/bin/python main_finetune_w_recons.py --model vit_base_patch16 \
+    /opt/conda/bin/python main_finetune_w_recons.py \
+        --model mae_vit_base_patch16 \
         --data_path /ds/images/imagenet/ \
         --finetune checkpoints/mae_pretrain_vit_base_full.pth \
         --batch_size 128 \

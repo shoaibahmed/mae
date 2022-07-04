@@ -27,7 +27,8 @@ class ViTwMAE(nn.Module):
                  embed_dim=1024, depth=24, num_heads=16,
                  decoder_embed_dim=512, decoder_depth=8, decoder_num_heads=16,
                  mlp_ratio=4., norm_layer=nn.LayerNorm, norm_pix_loss=False,
-                 global_pool=False, cls_criterion=None, recons_lambda=None):
+                 global_pool=False, cls_criterion=None, recons_lambda=None,
+                 num_classes=None, drop_path_rate=0.):
         super().__init__()
 
         # --------------------------------------------------------------------------
@@ -52,8 +53,9 @@ class ViTwMAE(nn.Module):
 
         self.decoder_pos_embed = nn.Parameter(torch.zeros(1, num_patches + 1, decoder_embed_dim), requires_grad=False)  # fixed sin-cos embedding
 
+        dpr = [x.item() for x in torch.linspace(0, drop_path_rate, depth)]  # stochastic depth decay rule
         self.decoder_blocks = nn.ModuleList([
-            Block(decoder_embed_dim, decoder_num_heads, mlp_ratio, qkv_bias=True, norm_layer=norm_layer)
+            Block(decoder_embed_dim, decoder_num_heads, mlp_ratio, qkv_bias=True, drop_path=dpr[i], norm_layer=norm_layer)
             for i in range(decoder_depth)])
 
         self.decoder_norm = norm_layer(decoder_embed_dim)
@@ -64,9 +66,14 @@ class ViTwMAE(nn.Module):
 
         self.initialize_weights()
         
+        # ViT classification params
         self.global_pool = global_pool
         self.cls_criterion = cls_criterion
         self.recons_lambda = recons_lambda
+        
+        # Classifier head
+        assert num_classes is not None and num_classes > 0
+        self.head = nn.Linear(self.num_features, num_classes)
 
     def initialize_weights(self):
         # initialization
@@ -254,9 +261,10 @@ class ViTwMAE(nn.Module):
         return loss, pred, mask
     
     def forward(self, imgs, mask_ratio=0.75, targets=None):
-        latent, mask, ids_restore, logits = self.forward_features(imgs, mask_ratio)
+        latent, mask, ids_restore, pre_logits = self.forward_features(imgs, mask_ratio)
         pred = self.forward_decoder(latent, ids_restore)  # [N, L, p*p*3]
         recons_loss = self.forward_loss(imgs, pred, mask)
+        logits = self.head(pre_logits)
         cls_loss = None
         loss = recons_loss
         if targets is not None:
