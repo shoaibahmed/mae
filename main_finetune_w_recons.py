@@ -155,6 +155,9 @@ def get_args_parser():
     # SAS options
     parser.add_argument('--recons_lambda', type=float, default=0.5,
                         help='Lambda value to be used with the reconstruction loss (default: 0.5)')
+    parser.add_argument('--norm_pix_loss', action='store_true',
+                        help='Use (per-patch) normalized pixels as targets for computing loss')
+    parser.set_defaults(norm_pix_loss=False)
 
     return parser
 
@@ -244,6 +247,7 @@ def main(args):
         global_pool=args.global_pool,
         cls_criterion=criterion,
         recons_lambda=args.recons_lambda,
+        norm_pix_loss=args.norm_pix_loss,
     )
 
     if args.finetune and not args.eval:
