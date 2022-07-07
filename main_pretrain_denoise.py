@@ -24,7 +24,7 @@ import torchvision.datasets as datasets
 
 import timm
 
-assert timm.__version__ == "0.3.2"  # version check
+# assert timm.__version__ == "0.3.2"  # version check
 import timm.optim.optim_factory as optim_factory
 
 import util.misc as misc
@@ -33,7 +33,7 @@ from util.transforms import Transform
 
 import models_dmae
 
-from engine_pretrain import train_one_epoch
+from engine_pretrain_denoise import train_one_epoch
 
 
 def get_args_parser():

@@ -28,7 +28,7 @@ def plot_results(all_results, file_name):
     fig, ax = plt.subplots()
     plot_width = 6 * len(model_names)
     if len(model_names) == 1:
-        plot_width = 8
+        plot_width = 12
     fig.set_size_inches(plot_width, 8)
     
     r_list = []
@@ -115,9 +115,13 @@ for title, file_name in zip(legend_titles, file_names):
         if is_noise_class:
             severity = r["severity"]
             acc = r["acc1"]
+            if isinstance(acc, dict):
+                acc = acc["global_avg"]
             results_dict[class_name][severity] = acc
         else:
             acc = r["acc1"]
+            if isinstance(acc, dict):
+                acc = acc["global_avg"]
             results_dict[class_name] = {str(i): acc for i in range(1, 6)}
     
     # dir_name = file_name.split(os.sep)[-2]
