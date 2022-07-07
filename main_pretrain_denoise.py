@@ -31,7 +31,7 @@ import util.misc as misc
 from util.misc import NativeScalerWithGradNormCount as NativeScaler
 from util.transforms import Transform
 
-import models_mae
+import models_dmae
 
 from engine_pretrain import train_one_epoch
 
@@ -155,7 +155,7 @@ def main(args):
     )
     
     # define the model
-    model = models_mae.__dict__[args.model](norm_pix_loss=args.norm_pix_loss)
+    model = models_dmae.__dict__[args.model](norm_pix_loss=args.norm_pix_loss)
 
     model.to(device)
 
