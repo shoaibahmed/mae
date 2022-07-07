@@ -28,8 +28,12 @@ class Solarization(object):
 
 class Transform:
     def __init__(self):
-        self.transform = transforms.Compose([
+        self.shared_transform = transforms.Compose([
+            transforms.RandomResizedCrop(224, interpolation=Image.BICUBIC),
             transforms.RandomHorizontalFlip(p=0.5),
+        ])
+        
+        self.transform = transforms.Compose([
             transforms.RandomApply(
                 [transforms.ColorJitter(brightness=0.4, contrast=0.4,
                                         saturation=0.2, hue=0.1)],
@@ -41,12 +45,12 @@ class Transform:
         ])
         
         self.base_transform = transforms.Compose([
-            transforms.RandomResizedCrop(224, interpolation=Image.BICUBIC),
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                  std=[0.229, 0.224, 0.225])
         ])
 
     def __call__(self, x):
+        x = self.shared_transform(x)
         y1 = self.transform(x)
         return self.base_transform(y1), self.base_transform(x)  # Return corrupted, original image
