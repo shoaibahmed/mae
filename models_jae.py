@@ -136,7 +136,7 @@ class JigsawAutoencoderViT(nn.Module):
         # get the shuffled indices
         x_permuted = torch.gather(x, dim=1, index=ids_shuffle.unsqueeze(-1).repeat(1, 1, D))
 
-        return x_permuted
+        return x_permuted, ids_shuffle
 
     def forward_encoder(self, x):
         # embed patches
@@ -146,7 +146,7 @@ class JigsawAutoencoderViT(nn.Module):
         x = x + self.pos_embed[:, 1:, :]
 
         # randomly permute the tiles
-        x = self.random_permutation(x)
+        x, ids_shuffle = self.random_permutation(x)
 
         # append cls token
         cls_token = self.cls_token + self.pos_embed[:, :1, :]
@@ -158,7 +158,7 @@ class JigsawAutoencoderViT(nn.Module):
             x = blk(x)
         x = self.norm(x)
 
-        return x
+        return x, ids_shuffle
 
     def forward_decoder(self, x):
         # embed tokens
@@ -180,11 +180,10 @@ class JigsawAutoencoderViT(nn.Module):
 
         return x
 
-    def forward_loss(self, imgs, pred, mask):
+    def forward_loss(self, imgs, pred):
         """
         imgs: [N, 3, H, W]
         pred: [N, L, p*p*3]
-        mask: [N, L], 0 is keep, 1 is remove, 
         """
         target = self.patchify(imgs)
         if self.norm_pix_loss:
@@ -194,15 +193,13 @@ class JigsawAutoencoderViT(nn.Module):
 
         loss = (pred - target) ** 2
         loss = loss.mean(dim=-1)  # [N, L], mean loss per patch
+        return loss.sum()
 
-        loss = (loss * mask).sum() / mask.sum()  # mean loss on removed patches
-        return loss
-
-    def forward(self, imgs):
-        latent, mask, ids_restore = self.forward_encoder(imgs)
-        pred = self.forward_decoder(latent, ids_restore)  # [N, L, p*p*3]
-        loss = self.forward_loss(imgs, pred, mask)
-        return loss, pred, mask
+    def forward(self, imgs, mask_ratio=None):
+        latent, ids_shuffle = self.forward_encoder(imgs)
+        pred = self.forward_decoder(latent)  # [N, L, p*p*3]
+        loss = self.forward_loss(imgs, pred)
+        return loss, pred, ids_shuffle
 
 
 def jae_vit_base_patch16_dec512d8b(**kwargs):

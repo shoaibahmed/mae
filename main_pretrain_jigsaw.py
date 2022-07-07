@@ -50,6 +50,9 @@ def get_args_parser():
     parser.add_argument('--input_size', default=224, type=int,
                         help='images input size')
 
+    parser.add_argument('--mask_ratio', default=None, type=float,
+                        help='Masking ratio (percentage of removed patches) -- not used for Jigsaw puzzle task.')
+
     parser.add_argument('--norm_pix_loss', action='store_true',
                         help='Use (per-patch) normalized pixels as targets for computing loss')
     parser.set_defaults(norm_pix_loss=False)
@@ -102,6 +105,8 @@ def get_args_parser():
 
 
 def main(args):
+    assert args.mask_ratio is None
+    
     misc.init_distributed_mode(args)
 
     print('job dir: {}'.format(os.path.dirname(os.path.realpath(__file__))))
