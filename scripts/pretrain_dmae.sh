@@ -18,7 +18,7 @@
 echo "Pretraining d-MAE"
 job=dmae_base_pretrain
 srun -p RTXA6000 -K -N1 --ntasks-per-node=8 --gpus-per-task=1 --cpus-per-gpu=8 --mem=400G \
-    --kill-on-bad-exit --job-name ${job} --nice=0 --time=1-00:00:00 \
+    --kill-on-bad-exit --job-name ${job} --nice=0 --time=24-00:00:00 \
     --container-mounts=/netscratch:/netscratch,/ds:/ds,/home/siddiqui:/home/siddiqui --container-image=/netscratch/enroot/nvcr.io_nvidia_pytorch_21.06-py3.sqsh \
     --container-workdir=`pwd` --container-mount-home --export="NCCL_SOCKET_IFNAME=bond,NCCL_IB_HCA=mlx5" \
     /opt/conda/bin/python main_pretrain_denoise.py \
