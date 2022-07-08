@@ -24,8 +24,8 @@ srun -p RTXA6000 -K -N1 --ntasks-per-node=8 --gpus-per-task=1 --cpus-per-gpu=8 -
     /opt/conda/bin/python main_pretrain_jigsaw.py \
         --model jae_vit_base_patch16 \
         --data_path /ds/images/imagenet/ \
-        --batch_size 256 \
-        --accum_iter 2 \
+        --batch_size 128 \
+        --accum_iter 4 \
         --epochs 800 \
         --warmup_epochs 40 \
         --norm_pix_loss \
