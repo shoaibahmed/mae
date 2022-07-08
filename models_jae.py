@@ -192,8 +192,8 @@ class JigsawAutoencoderViT(nn.Module):
             target = (target - mean) / (var + 1.e-6)**.5
 
         loss = (pred - target) ** 2
-        loss = loss.mean(dim=-1)  # [N, L], mean loss per patch
-        return loss.sum()
+        # loss = loss.mean(dim=-1)  # [N, L], mean loss per patch
+        return loss.mean()
 
     def forward(self, imgs, mask_ratio=None):
         latent, ids_shuffle = self.forward_encoder(imgs)
