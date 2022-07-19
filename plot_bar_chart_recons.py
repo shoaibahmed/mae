@@ -49,7 +49,8 @@ def plot_results(all_results, file_name):
         accuracy_list = []
         accuracy_std_list = []
         use_idx = []
-        is_acc = "acc" in key.lower()
+        is_acc = "error" in key.lower()
+        
         for j, corruption_type in enumerate(corruption_types):
             corruption_levels = list(results[corruption_type].keys())
             assert all([x == str(y) for x, y in zip(corruption_levels, range(1, 6))])
@@ -161,7 +162,7 @@ for title, file_name in zip(legend_titles, file_names):
     # Split the model name w.r.t. the title
     k1_sample = list(results_dict.keys())[0]
     k2_sample = list(results_dict[k1_sample].keys())[0]
-    for i, loss_type in enumerate([" (Acc)", " (Loss)", " (CLS loss)", " (Recons loss)"]):
+    for i, loss_type in enumerate([" (Error)", " (Loss)", " (CLS loss)", " (Recons loss)"]):
         if results_dict[k1_sample][k2_sample][i] is None:  # Don't add if empty
             print("Ignoring combination:", f"{title}{loss_type}")
             continue
