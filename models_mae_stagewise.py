@@ -48,19 +48,25 @@ class StagewiseMaskedAutoencoderViT(nn.Module):
         # --------------------------------------------------------------------------
 
         # --------------------------------------------------------------------------
-        # MAE decoder specifics
-        self.decoder_embed = nn.Linear(embed_dim, decoder_embed_dim, bias=True)
-
-        self.mask_token = nn.Parameter(torch.zeros(1, 1, decoder_embed_dim))
-
-        self.decoder_pos_embed = nn.Parameter(torch.zeros(1, num_patches + 1, decoder_embed_dim), requires_grad=False)  # fixed sin-cos embedding
-
-        self.decoder_blocks = nn.ModuleList([
-            Block(decoder_embed_dim, decoder_num_heads, mlp_ratio, qkv_bias=True, norm_layer=norm_layer)
-            for i in range(decoder_depth)])
-
+        self.decoder_embed = nn.ModuleList()
+        self.mask_token = nn.ParameterList()
+        self.decoder_blocks = nn.ModuleList()
+        self.decoder_pred = nn.ModuleList()
+        
         self.decoder_norm = norm_layer(decoder_embed_dim)
-        self.decoder_pred = nn.Linear(decoder_embed_dim, patch_size**2 * in_chans, bias=True) # decoder to patch
+        self.decoder_pos_embed = nn.Parameter(torch.zeros(1, num_patches + 1, decoder_embed_dim), requires_grad=False)  # fixed sin-cos embedding
+        
+        for _ in range(num_stages):
+            # MAE decoder specifics
+            self.decoder_embed.append(nn.Linear(embed_dim, decoder_embed_dim, bias=True))
+
+            self.mask_token.append(nn.Parameter(torch.zeros(1, 1, decoder_embed_dim)))
+
+            self.decoder_blocks.append(nn.ModuleList([
+                Block(decoder_embed_dim, decoder_num_heads, mlp_ratio, qkv_bias=True, norm_layer=norm_layer)
+                for i in range(decoder_depth)]))
+
+            self.decoder_pred.append(nn.Linear(decoder_embed_dim, patch_size**2 * in_chans, bias=True)) # decoder to patch
         # --------------------------------------------------------------------------
 
         self.norm_pix_loss = norm_pix_loss
@@ -82,7 +88,8 @@ class StagewiseMaskedAutoencoderViT(nn.Module):
 
         # timm's trunc_normal_(std=.02) is effectively normal_(std=0.02) as cutoff is too big (2.)
         torch.nn.init.normal_(self.cls_token, std=.02)
-        torch.nn.init.normal_(self.mask_token, std=.02)
+        for idx in range(self.num_stages):
+            torch.nn.init.normal_(self.mask_token[idx], std=.02)
 
         # initialize nn.Linear and nn.LayerNorm
         self.apply(self._init_weights)
@@ -185,10 +192,7 @@ class StagewiseMaskedAutoencoderViT(nn.Module):
         encoded_features_list = []
         # apply Transformer blocks
         for i, blk in enumerate(self.blocks):
-            if i % self.num_blocks_per_stage == 0:
-                # Input masking happens here
-                x = x.detach()  # Stop gradient from previous iters
-                
+            if i % self.num_blocks_per_stage == 0:  # Mask the input
                 # Get the input mask
                 block_idx = len(encoded_features_list)
                 ids_keep = ids_keep_list[block_idx]
@@ -221,19 +225,20 @@ class StagewiseMaskedAutoencoderViT(nn.Module):
             x = blk(x)
             print("After:", x.shape)
             
-            if i % self.num_blocks_per_stage == self.num_blocks_per_stage - 1:
+            if i % self.num_blocks_per_stage == self.num_blocks_per_stage - 1:  # Stop gradient and concatenate it with features
                 # Concatenate the outputs to the list
                 print("Concatenating features...")
                 encoded_features_list.append(self.norm(x))
+                x = x.detach()  # Stop gradient from previous iters
         
         return encoded_features_list, mask_list, ids_restore
 
-    def forward_decoder(self, x, ids_restore):
+    def forward_decoder(self, x, ids_restore, decoder_idx):
         # embed tokens
-        x = self.decoder_embed(x)
+        x = self.decoder_embed[decoder_idx](x)
 
         # append mask tokens to sequence
-        mask_tokens = self.mask_token.repeat(x.shape[0], ids_restore.shape[1] + 1 - x.shape[1], 1)
+        mask_tokens = self.mask_token[decoder_idx].repeat(x.shape[0], ids_restore.shape[1] + 1 - x.shape[1], 1)
         x_ = torch.cat([x[:, 1:, :], mask_tokens], dim=1)  # no cls token
         x_ = torch.gather(x_, dim=1, index=ids_restore.unsqueeze(-1).repeat(1, 1, x.shape[2]))  # unshuffle
         x = torch.cat([x[:, :1, :], x_], dim=1)  # append cls token
@@ -242,12 +247,12 @@ class StagewiseMaskedAutoencoderViT(nn.Module):
         x = x + self.decoder_pos_embed
 
         # apply Transformer blocks
-        for blk in self.decoder_blocks:
+        for blk in self.decoder_blocks[decoder_idx]:
             x = blk(x)
         x = self.decoder_norm(x)
 
         # predictor projection
-        x = self.decoder_pred(x)
+        x = self.decoder_pred[decoder_idx](x)
 
         # remove cls token
         x = x[:, 1:, :]
@@ -276,8 +281,8 @@ class StagewiseMaskedAutoencoderViT(nn.Module):
         latent_list, mask_list, ids_restore = self.forward_encoder(imgs, mask_ratio_list)
         loss_list = []
         pred_list = []
-        for latent, mask in zip(latent_list, mask_list):
-            pred = self.forward_decoder(latent, ids_restore)  # [N, L, p*p*3]
+        for idx, (latent, mask) in enumerate(zip(latent_list, mask_list)):
+            pred = self.forward_decoder(latent, ids_restore, idx)  # [N, L, p*p*3]
             loss = self.forward_loss(imgs, pred, mask)
             pred_list.append(pred)
             loss_list.append(loss)
