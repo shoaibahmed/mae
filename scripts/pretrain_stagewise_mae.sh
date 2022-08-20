@@ -27,9 +27,9 @@ srun -p A100 -K -N1 --ntasks-per-node=8 --gpus-per-task=1 --cpus-per-gpu=8 --mem
         --batch_size 64 \
         --accum_iter 8 \
         --mask_ratio "0.2;0.4;0.6;0.75" \
-        --epochs 800 \
+        --epochs 100 \
         --warmup_epochs 40 \
         --norm_pix_loss \
         --blr 1.5e-4 --weight_decay 0.05 \
-        --output_dir ./outputs/mae_base_pretrain --log_dir ./outputs/stagewise_mae_base_pretrain \
+        --output_dir ./outputs/${job} --log_dir ./outputs/${job} \
         --num_workers 8 --pin_mem > ./logs/${job}.log 2>&1 &
