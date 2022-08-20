@@ -64,7 +64,8 @@ class StagewiseMaskedAutoencoderViT(nn.Module):
 
             self.decoder_blocks.append(nn.ModuleList([
                 Block(decoder_embed_dim, decoder_num_heads, mlp_ratio, qkv_bias=True, norm_layer=norm_layer)
-                for i in range(decoder_depth)]))
+                for i in range(decoder_depth)])
+            )
 
             self.decoder_pred.append(nn.Linear(decoder_embed_dim, patch_size**2 * in_chans, bias=True)) # decoder to patch
         # --------------------------------------------------------------------------
@@ -151,7 +152,7 @@ class StagewiseMaskedAutoencoderViT(nn.Module):
         # ids_keep_reindexed_list = []  # Reindexed list provides new indices in relation to the previous gather already applied
         mask_list = []
         
-        prev_mask_ratio = -1.
+        prev_mask_ratio = 0.
         for mask_ratio in mask_ratio_list:
             assert prev_mask_ratio < mask_ratio, f"Previous mask ratio ({prev_mask_ratio}) should be less than current mask ratio ({mask_ratio})"
             
