@@ -44,7 +44,9 @@ class StagewiseMaskedAutoencoderViT(nn.Module):
         self.blocks = nn.ModuleList([
             Block(embed_dim, num_heads, mlp_ratio, qkv_bias=True, norm_layer=norm_layer)
             for i in range(depth)])
-        self.norm = norm_layer(embed_dim)
+        self.norm = nn.ModuleList()
+        for _ in range(num_stages):
+            self.norm.append(norm_layer(embed_dim))
         # --------------------------------------------------------------------------
 
         # --------------------------------------------------------------------------
@@ -52,8 +54,8 @@ class StagewiseMaskedAutoencoderViT(nn.Module):
         self.mask_token = nn.ParameterList()
         self.decoder_blocks = nn.ModuleList()
         self.decoder_pred = nn.ModuleList()
+        self.decoder_norm = nn.ModuleList()
         
-        self.decoder_norm = norm_layer(decoder_embed_dim)
         self.decoder_pos_embed = nn.Parameter(torch.zeros(1, num_patches + 1, decoder_embed_dim), requires_grad=False)  # fixed sin-cos embedding
         
         for _ in range(num_stages):
@@ -67,6 +69,7 @@ class StagewiseMaskedAutoencoderViT(nn.Module):
                 for i in range(decoder_depth)])
             )
 
+            self.decoder_norm.append(norm_layer(decoder_embed_dim))
             self.decoder_pred.append(nn.Linear(decoder_embed_dim, patch_size**2 * in_chans, bias=True)) # decoder to patch
         # --------------------------------------------------------------------------
 
@@ -229,7 +232,8 @@ class StagewiseMaskedAutoencoderViT(nn.Module):
             if i % self.num_blocks_per_stage == self.num_blocks_per_stage - 1:  # Stop gradient and concatenate it with features
                 # Concatenate the outputs to the list
                 print("Concatenating features...")
-                encoded_features_list.append(self.norm(x))
+                block_idx = len(encoded_features_list)
+                encoded_features_list.append(self.norm[block_idx](x))
                 x = x.detach()  # Stop gradient from previous iters
         
         return encoded_features_list, mask_list, ids_restore
@@ -250,7 +254,7 @@ class StagewiseMaskedAutoencoderViT(nn.Module):
         # apply Transformer blocks
         for blk in self.decoder_blocks[decoder_idx]:
             x = blk(x)
-        x = self.decoder_norm(x)
+        x = self.decoder_norm[decoder_idx](x)
 
         # predictor projection
         x = self.decoder_pred[decoder_idx](x)
