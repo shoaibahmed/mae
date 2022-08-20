@@ -201,17 +201,9 @@ class StagewiseMaskedAutoencoderViT(nn.Module):
                 block_idx = len(encoded_features_list)
                 ids_keep = ids_keep_list[block_idx]
                 
-                # Ensure that the CLS token at index 0 is always retrieved
-                print("Evaluating block-", block_idx+1)
-                # print("Original idx keep:", len(ids_keep[0]), ids_keep[0])
-                # ids_keep = ids_keep + 1  # Move all the other indices by 1 as index 0 is now cls
-                # ids_keep = torch.cat([torch.zeros((ids_keep.shape[0], 1), dtype=ids_keep.dtype).to(ids_keep.device), ids_keep], dim=1)
-                # print("Augmented idx keep:", len(ids_keep[0]), ids_keep[0])
-                
                 if block_idx > 0:
                     # Append mask tokens to sequence to construct the right sequence
                     mask_tokens = torch.zeros(x.shape[0], ids_restore.shape[1] + 1 - x.shape[1], x.shape[2], dtype=x.dtype).to(x.device)
-                    print(f"Mask token shape: {mask_tokens.shape} / X shape: {x.shape}")
                     x_ = torch.cat([x[:, 1:, :], mask_tokens], dim=1)  # no cls token
                     x_ = torch.gather(x_, dim=1, index=ids_restore.unsqueeze(-1).repeat(1, 1, x.shape[2]))  # unshuffle
                     # x = torch.cat([x[:, :1, :], x_], dim=1)  # append cls token
@@ -219,19 +211,14 @@ class StagewiseMaskedAutoencoderViT(nn.Module):
                     x_ = x[:, 1:, :]  # No masking has been applied, but remove the cls token
                 
                 # Mask the input
-                print("Original x shape:", x.shape)
                 x_ = torch.gather(x_, dim=1, index=ids_keep.unsqueeze(-1).repeat(1, 1, D))
-                print("Gathered x shape:", x_.shape)
                 x = torch.cat([x[:, :1, :], x_], dim=1)  # append cls token
-                print("Retrieved x shape:", x.shape)
             
-            print("Before:", x.shape)
+            # Perform the block operation
             x = blk(x)
-            print("After:", x.shape)
             
             if i % self.num_blocks_per_stage == self.num_blocks_per_stage - 1:  # Stop gradient and concatenate it with features
                 # Concatenate the outputs to the list
-                print("Concatenating features...")
                 block_idx = len(encoded_features_list)
                 encoded_features_list.append(self.norm[block_idx](x))
                 x = x.detach()  # Stop gradient from previous iters
