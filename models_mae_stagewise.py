@@ -143,7 +143,7 @@ class StagewiseMaskedAutoencoderViT(nn.Module):
         ids_keep_list = []
         mask_list = []
         
-        for mask_ratio in enumerate(mask_ratio_list):
+        for mask_ratio in mask_ratio_list:
             # keep the first subset
             len_keep = int(L * (1 - mask_ratio))
             ids_keep = ids_shuffle[:, :len_keep]
@@ -178,9 +178,9 @@ class StagewiseMaskedAutoencoderViT(nn.Module):
 
         encoded_features_list = []
         # apply Transformer blocks
-        for i, blk in (self.blocks):
+        for i, blk in enumerate(self.blocks):
             if i % self.num_blocks_per_stage:
-                # TODO: Mask input here
+                # Input masking happens here
                 x = x.detach()  # Stop gradient from previous iters
                 
                 # Get the input mask
@@ -188,17 +188,24 @@ class StagewiseMaskedAutoencoderViT(nn.Module):
                 ids_keep = ids_keep_list[block_idx]
                 
                 # Ensure that the CLS token at index 0 is always retrieved
+                # print("Evaluating block-", block_idx+1)
+                # print("Original idx keep:", len(ids_keep[0]), ids_keep[0])
                 ids_keep = ids_keep + 1  # Move all the other indices by 1 as index 0 is now cls
-                ids_keep = torch.cat([torch.zeros((ids_keep.shape[0], 1), dtype=ids_keep.dtype), ids_keep], dim=1)
+                ids_keep = torch.cat([torch.zeros((ids_keep.shape[0], 1), dtype=ids_keep.dtype).to(ids_keep.device), ids_keep], dim=1)
+                # print("Augmented idx keep:", len(ids_keep[0]), ids_keep[0])
+                
+                # TODO: Will fail 
+                assert False, "Indexing changes once you perform a gather. Therefore, old indices are not simply applicable..."
                 
                 # Mask the input
+                # print("Original x shape:", x.shape)
                 x = torch.gather(x, dim=1, index=ids_keep.unsqueeze(-1).repeat(1, 1, D))
+                # print("Retrieved x shape:", x.shape)
             
             x = blk(x)
             
             if i % self.num_blocks_per_stage == self.num_blocks_per_stage - 1:
-                # TODO: create an output at each stop
-                raise NotImplementedError
+                # Concatenate the outputs to the list
                 encoded_features_list.append(self.norm(x))
         
         return encoded_features_list, mask_list, ids_restore
