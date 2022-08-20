@@ -24,7 +24,7 @@ srun -p RTXA6000 -K -N1 --ntasks-per-node=8 --gpus-per-task=1 --cpus-per-gpu=8 -
     /opt/conda/bin/python main_pretrain_stagewise.py \
         --model stagewise_mae_vit_base_patch16 \
         --data_path /ds/images/imagenet/ \
-        --batch_size 256 \
+        --batch_size 64 \
         --accum_iter 2 \
         --mask_ratio "0.2;0.4;0.6;0.75" \
         --epochs 800 \

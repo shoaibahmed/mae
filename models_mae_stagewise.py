@@ -141,9 +141,13 @@ class StagewiseMaskedAutoencoderViT(nn.Module):
         ids_restore = torch.argsort(ids_shuffle, dim=1)
 
         ids_keep_list = []
+        # ids_keep_reindexed_list = []  # Reindexed list provides new indices in relation to the previous gather already applied
         mask_list = []
         
+        prev_mask_ratio = -1.
         for mask_ratio in mask_ratio_list:
+            assert prev_mask_ratio < mask_ratio, f"Previous mask ratio ({prev_mask_ratio}) should be less than current mask ratio ({mask_ratio})"
+            
             # keep the first subset
             len_keep = int(L * (1 - mask_ratio))
             ids_keep = ids_shuffle[:, :len_keep]
@@ -156,6 +160,8 @@ class StagewiseMaskedAutoencoderViT(nn.Module):
             # unshuffle to get the binary mask
             mask = torch.gather(mask, dim=1, index=ids_restore)
             mask_list.append(mask)
+            
+            prev_mask_ratio = mask_ratio
 
         # return x_masked, mask, ids_restore
         return ids_keep_list, mask_list, ids_restore
@@ -179,7 +185,7 @@ class StagewiseMaskedAutoencoderViT(nn.Module):
         encoded_features_list = []
         # apply Transformer blocks
         for i, blk in enumerate(self.blocks):
-            if i % self.num_blocks_per_stage:
+            if i % self.num_blocks_per_stage == 0:
                 # Input masking happens here
                 x = x.detach()  # Stop gradient from previous iters
                 
@@ -188,24 +194,36 @@ class StagewiseMaskedAutoencoderViT(nn.Module):
                 ids_keep = ids_keep_list[block_idx]
                 
                 # Ensure that the CLS token at index 0 is always retrieved
-                # print("Evaluating block-", block_idx+1)
+                print("Evaluating block-", block_idx+1)
                 # print("Original idx keep:", len(ids_keep[0]), ids_keep[0])
-                ids_keep = ids_keep + 1  # Move all the other indices by 1 as index 0 is now cls
-                ids_keep = torch.cat([torch.zeros((ids_keep.shape[0], 1), dtype=ids_keep.dtype).to(ids_keep.device), ids_keep], dim=1)
+                # ids_keep = ids_keep + 1  # Move all the other indices by 1 as index 0 is now cls
+                # ids_keep = torch.cat([torch.zeros((ids_keep.shape[0], 1), dtype=ids_keep.dtype).to(ids_keep.device), ids_keep], dim=1)
                 # print("Augmented idx keep:", len(ids_keep[0]), ids_keep[0])
                 
-                # TODO: Will fail 
-                assert False, "Indexing changes once you perform a gather. Therefore, old indices are not simply applicable..."
+                if block_idx > 0:
+                    # Append mask tokens to sequence to construct the right sequence
+                    mask_tokens = torch.zeros(x.shape[0], ids_restore.shape[1] + 1 - x.shape[1], x.shape[2], dtype=x.dtype).to(x.device)
+                    print(f"Mask token shape: {mask_tokens.shape} / X shape: {x.shape}")
+                    x_ = torch.cat([x[:, 1:, :], mask_tokens], dim=1)  # no cls token
+                    x_ = torch.gather(x_, dim=1, index=ids_restore.unsqueeze(-1).repeat(1, 1, x.shape[2]))  # unshuffle
+                    # x = torch.cat([x[:, :1, :], x_], dim=1)  # append cls token
+                else:
+                    x_ = x[:, 1:, :]  # No masking has been applied, but remove the cls token
                 
                 # Mask the input
-                # print("Original x shape:", x.shape)
-                x = torch.gather(x, dim=1, index=ids_keep.unsqueeze(-1).repeat(1, 1, D))
-                # print("Retrieved x shape:", x.shape)
+                print("Original x shape:", x.shape)
+                x_ = torch.gather(x_, dim=1, index=ids_keep.unsqueeze(-1).repeat(1, 1, D))
+                print("Gathered x shape:", x_.shape)
+                x = torch.cat([x[:, :1, :], x_], dim=1)  # append cls token
+                print("Retrieved x shape:", x.shape)
             
+            print("Before:", x.shape)
             x = blk(x)
+            print("After:", x.shape)
             
             if i % self.num_blocks_per_stage == self.num_blocks_per_stage - 1:
                 # Concatenate the outputs to the list
+                print("Concatenating features...")
                 encoded_features_list.append(self.norm(x))
         
         return encoded_features_list, mask_list, ids_restore
