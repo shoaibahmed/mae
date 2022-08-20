@@ -157,7 +157,7 @@ class StagewiseMaskedAutoencoderViT(nn.Module):
         
         prev_mask_ratio = 0.
         for mask_ratio in mask_ratio_list:
-            assert prev_mask_ratio < mask_ratio, f"Previous mask ratio ({prev_mask_ratio}) should be less than current mask ratio ({mask_ratio})"
+            assert prev_mask_ratio <= mask_ratio, f"Previous mask ratio ({prev_mask_ratio}) should be less than or equal to the current mask ratio ({mask_ratio})"
             
             # keep the first subset
             len_keep = int(L * (1 - mask_ratio))
