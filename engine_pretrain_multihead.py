@@ -56,6 +56,7 @@ def train_one_epoch(model: torch.nn.Module,
         loss = loss_list[0]
         for current_loss in loss_list[1:]:
             loss = loss + current_loss
+        cummulative_loss = float(loss)
         loss /= accum_iter
         update_grad = (data_iter_step + 1) % accum_iter == 0
         loss_scaler(loss, optimizer, parameters=model.parameters(),
@@ -66,7 +67,7 @@ def train_one_epoch(model: torch.nn.Module,
         torch.cuda.synchronize()
 
         metric_logger.update(**{f"loss_block_{i}": loss_value_list[i] for i in range(len(loss_value_list))})
-        metric_logger.update(combined_loss=float(loss))
+        metric_logger.update(cummulative_loss=cummulative_loss)
 
         lr = optimizer.param_groups[0]["lr"]
         metric_logger.update(lr=lr)
